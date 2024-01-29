@@ -15,3 +15,4 @@ mamba/selective_scan_cuda.cpython-310-x86_64-linux-gnu.so
 datasets/
 workbench/
 mlruns/
+tmp.py
