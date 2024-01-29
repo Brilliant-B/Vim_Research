@@ -40,8 +40,8 @@ Recently the state space models (SSMs) with efficient hardware-aware designs, i.
   - `pip install -r vim/vim_requirements.txt`
 
 - Install ``causal_conv1d`` and ``mamba``
-  - `pip install -e causal_conv1d`
-  - `pip install -e mamba`
+  - `cd causal_conv1d; pip install -e .`
+  - `cd mamba; pip install -e .`
   
   
 
