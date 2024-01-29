@@ -10,7 +10,7 @@ import json
 import os
 os.environ['CUDA_VISIBLE_DEVICES'] = "1, 2, 3, 4, 5, 6, 7"
 import sys
-sys.path.append(r'/home/cihangxie/barryli/Vim_Exp/')
+sys.path.append(r'/home/bairuili/Vim_Research/')
 
 from pathlib import Path
 from timm.data import Mixup
