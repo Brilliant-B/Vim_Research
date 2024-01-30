@@ -8,9 +8,9 @@ import torch
 import torch.backends.cudnn as cudnn
 import json
 import os
-os.environ['CUDA_VISIBLE_DEVICES'] = "0, 1, 2, 3, 4, 5, 6, 7"
+os.environ['CUDA_VISIBLE_DEVICES'] = "1, 2, 3, 4, 5, 6, 7"
 import sys
-sys.path.append(r'/home/bairuili/Vim_Research/')
+sys.path.append(r'/home/cihangxie/barryli/Vim_Exp/')
 
 from pathlib import Path
 from timm.data import Mixup
@@ -43,7 +43,6 @@ def get_args_parser():
     parser.add_argument('--model', default='deit_base_patch16_224', type=str, metavar='MODEL',
                         help='Name of model to train')
     parser.add_argument('--input-size', default=224, type=int, help='images input size')
-
     parser.add_argument('--drop', type=float, default=0.0, metavar='PCT',
                         help='Dropout rate (default: 0.)')
     parser.add_argument('--drop-path', type=float, default=0.1, metavar='PCT',
@@ -462,7 +461,7 @@ def main(args):
             optimizer, device, epoch, loss_scaler, amp_autocast,
             args.clip_grad, model_ema, mixup_fn,
             set_training_mode=args.train_mode,  # keep in eval mode for deit finetuning / train mode for training and deit III finetuning
-            args = args, 
+            args = args,
         )
 
         lr_scheduler.step(epoch)

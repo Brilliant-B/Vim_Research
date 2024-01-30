@@ -25,7 +25,7 @@ def train_one_epoch(model: torch.nn.Module, criterion: DistillationLoss,
     metric_logger = utils.MetricLogger(delimiter="  ", args=args)
     metric_logger.add_meter('lr', utils.SmoothedValue(window_size=1, fmt='{value:.6f}'))
     header = 'Epoch: [{}]'.format(epoch)
-    print_freq = 50
+    print_freq = 20
     
     if args.cosub:
         criterion = torch.nn.BCEWithLogitsLoss()
@@ -97,7 +97,7 @@ def evaluate(data_loader, model, device, amp_autocast, args):
 
     metric_logger = utils.MetricLogger(delimiter="  ", args=args)
     header = 'Test:'
-    print_freq = 5
+    print_freq = 10
 
     # switch to evaluation mode
     model.eval()

@@ -283,7 +283,7 @@ def interpolate_pos_embed(model, state_dict):
 def interpolate_pos_embed_vim(model, checkpoint_model):
     pos_embed_checkpoint = checkpoint_model['pos_embed']
     embedding_size = pos_embed_checkpoint.shape[-1]
-    num_patches = model.patch_embed.num_patches
+    num_patches = model.num_patches
     num_extra_tokens = model.pos_embed.shape[-2] - num_patches
     # height (== width) for the checkpoint position embedding
     orig_size = int((pos_embed_checkpoint.shape[-2] - num_extra_tokens) ** 0.5)
@@ -299,4 +299,6 @@ def interpolate_pos_embed_vim(model, checkpoint_model):
     pos_tokens = pos_tokens.permute(0, 2, 3, 1).flatten(1, 2)
     new_pos_embed = torch.cat((extra_tokens, pos_tokens), dim=1)
     checkpoint_model['pos_embed'] = new_pos_embed
+    if checkpoint_model['patch_embed.proj.weight'].shape != model.patch_embed.proj.weight.shape:
+        checkpoint_model['patch_embed.proj.weight'] = checkpoint_model['patch_embed.proj.weight'].reshape(model.patch_embed.proj.weight.shape)
     return checkpoint_model    

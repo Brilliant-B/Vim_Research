@@ -14,7 +14,7 @@ from timm.models.vision_transformer import _load_weights
 import math
 
 from collections import namedtuple
-from hilbert_indexing import PatchEmbed_HI
+from hilbert_indexing import Patchify
 
 from mamba_ssm.modules.mamba_simple import Mamba
 from mamba_ssm.utils.generation import GenerationMixin
@@ -232,15 +232,15 @@ class VisionMamba_HI(nn.Module):
         #     img_size=img_size, patch_size=patch_size, in_chans=channels, embed_dim=embed_dim)
         # num_patches = self.patch_embed.num_patches
         
-        self.patch_embed = PatchEmbed_HI(
+        self.patch_embed = Patchify(
             n_bits=img_n_bits, img_size=img_size, patch_size=patch_size, in_chans=channels, embed_dim=embed_dim)
-        num_patches = self.patch_embed.n_patches
+        self.num_patches = self.patch_embed.n_patches
 
         if if_cls_token:
             self.cls_token = nn.Parameter(torch.zeros(1, 1, self.embed_dim))
 
         if if_abs_pos_embed:
-            self.pos_embed = nn.Parameter(torch.zeros(1, num_patches + self.num_tokens, self.embed_dim))
+            self.pos_embed = nn.Parameter(torch.zeros(1, self.num_patches + self.num_tokens, self.embed_dim))
             self.pos_drop = nn.Dropout(p=drop_rate)
 
         if if_rope:
@@ -318,16 +318,14 @@ class VisionMamba_HI(nn.Module):
     def forward_features(self, x, inference_params=None):
         # taken from https://github.com/rwightman/pytorch-image-models/blob/master/timm/models/vision_transformer.py
         # with slight modifications to add the dist_token
-        B = x.shape[0]
         x = self.patch_embed(x)
         if self.if_cls_token:
             cls_token = self.cls_token.expand(x.shape[0], -1, -1)  # stole cls_tokens impl from Phil Wang, thanks
             x = torch.cat((cls_token, x), dim=1)
-
+        
         if self.if_abs_pos_embed:
             x = x + self.pos_embed
             x = self.pos_drop(x)
-
 
         # mamba impl
         residual = None
