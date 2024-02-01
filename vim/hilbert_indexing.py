@@ -1,5 +1,6 @@
 import torch
 import torch.nn as nn
+from einops import rearrange
 from timm.models.layers.helpers import to_2tuple
 from hilbertcurve.hilbertcurve import HilbertCurve
 
@@ -43,10 +44,9 @@ class Patchify(nn.Module):
         ph, pw = self.patch_size
         assert H == self.img_size[0] and W == self.img_size[1]
         x = x.reshape(B, C, self.grid_size[0], ph, self.grid_size[1], pw)
-        x = x.permute(0, 1, 3, 5, 2, 4)
-        x = x.reshape(B, C * ph * pw, *self.grid_size)
+        x = rearrange(x, 'b c h p w q -> b (c p q) h w')
+        assert x.shape == (B, C * ph * pw, *self.grid_size)
         x = self.flatten_patches(x)
-        # x = x.flatten(-2, -1).transpose(1, 2)
         x = self.proj(x)
         x = self.norm(x)
         return x

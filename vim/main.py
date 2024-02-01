@@ -8,9 +8,11 @@ import torch
 import torch.backends.cudnn as cudnn
 import json
 import os
-os.environ['CUDA_VISIBLE_DEVICES'] = "1, 2, 3, 4, 5, 6, 7"
+os.environ['CUDA_VISIBLE_DEVICES'] = "0, 1, 2, 3, 4, 5, 6, 7"
 import sys
 sys.path.append(r'/home/cihangxie/barryli/Vim_Exp/')
+torch.backends.cudnn.enabled = True
+torch.backends.cudnn.benchmark = True
 
 from pathlib import Path
 from timm.data import Mixup
@@ -435,7 +437,8 @@ def main(args):
         lr_scheduler.step(args.start_epoch)
         
     if args.eval:
-        test_stats = evaluate(data_loader_val, model, device, amp_autocast, args)
+        with torch.no_grad():
+            test_stats = evaluate(data_loader_val, model, device, amp_autocast, args)
         with open(os.path.join(args.output_dir, 'test_log.log'), 'a+') as f:
             if utils.is_main_process():
                 print(f"Accuracy-1 = {test_stats['acc1']}\nAccuracy-5 = {test_stats['acc5']}", file=f)
@@ -452,6 +455,7 @@ def main(args):
             print(f"Start training for {args.epochs} epochs")
     start_time = time.time()
     max_accuracy = 0.0
+    best_epoch = 0
     for epoch in range(args.start_epoch, args.epochs):
         if args.distributed:
             data_loader_train.sampler.set_epoch(epoch)
@@ -463,7 +467,7 @@ def main(args):
             set_training_mode=args.train_mode,  # keep in eval mode for deit finetuning / train mode for training and deit III finetuning
             args = args,
         )
-
+        
         lr_scheduler.step(epoch)
         if args.output_dir:
             checkpoint_paths = [os.path.join(output_dir, 'checkpoint.pth')]
@@ -477,9 +481,13 @@ def main(args):
                     'scaler': loss_scaler.state_dict() if loss_scaler != 'none' else loss_scaler,
                     'args': args,
                 }, checkpoint_path)
-        
-        
-        test_stats = evaluate(data_loader_val, model, device, amp_autocast, args)
+            with open(os.path.join(args.output_dir, 'train_log.log'), 'a+') as f:
+                if utils.is_main_process():
+                    print(f'Saved Checkpoint in Epoch [{epoch}]', file=f)
+                print(f'Saved Checkpoint in Epoch [{epoch}]')
+        '''
+        with torch.no_grad():
+            test_stats = evaluate(data_loader_val, model, device, amp_autocast, args)
         with open(os.path.join(args.output_dir, 'train_log.log'), 'a+') as f:
             if utils.is_main_process():
                 print(f"dataset-val images = {len(dataset_val)}\nAccuracy-1 = {test_stats['acc1']}\nAccuracy-5 = {test_stats['acc5']}", file=f)
@@ -487,6 +495,7 @@ def main(args):
         
         if max_accuracy < test_stats["acc1"]:
             max_accuracy = test_stats["acc1"]
+            best_epoch = epoch
             if args.output_dir:
                 checkpoint_paths = [os.path.join(output_dir, 'best_checkpoint.pth')]
                 for checkpoint_path in checkpoint_paths:
@@ -499,12 +508,17 @@ def main(args):
                         'scaler': loss_scaler.state_dict() if loss_scaler != 'none' else loss_scaler,
                         'args': args,
                     }, checkpoint_path)
+                with open(os.path.join(args.output_dir, 'train_log.log'), 'a+') as f:
+                    if utils.is_main_process():
+                        print(f'Updated the Best Checkpoint: Epoch [{best_epoch}]', file=f)
+                    print(f'Updated the Best Checkpoint: Epoch [{best_epoch}]')
         
         with open(os.path.join(args.output_dir, 'train_log.log'), 'a+') as f:
             if utils.is_main_process():
                 print(f'Max accuracy = {max_accuracy}', file=f)
             print(f'Max accuracy = {max_accuracy:.2f}%')
-        
+        '''
+        test_stats = dict()
         log_stats = {**{f'train_{k}': v for k, v in train_stats.items()},
                      **{f'test_{k}': v for k, v in test_stats.items()},
                      'epoch': epoch,

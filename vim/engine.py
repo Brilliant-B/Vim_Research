@@ -94,18 +94,17 @@ def train_one_epoch(model: torch.nn.Module, criterion: DistillationLoss,
 @torch.no_grad()
 def evaluate(data_loader, model, device, amp_autocast, args):
     criterion = torch.nn.CrossEntropyLoss()
-
     metric_logger = utils.MetricLogger(delimiter="  ", args=args)
     header = 'Test:'
-    print_freq = 10
-
+    print_freq = 20
+    
     # switch to evaluation mode
     model.eval()
-
+    
     for images, target in metric_logger.log_every(data_loader, print_freq, header):
         images = images.to(device, non_blocking=True)
         target = target.to(device, non_blocking=True)
-
+        
         # compute output
         with amp_autocast():
             output = model(images)

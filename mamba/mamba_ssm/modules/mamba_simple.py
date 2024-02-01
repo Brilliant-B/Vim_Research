@@ -151,7 +151,7 @@ class Mamba(nn.Module):
 
         self.out_proj = nn.Linear(self.d_inner, self.d_model, bias=bias, **factory_kwargs)
 
-    def forward(self, hidden_states, inference_params=None):
+    def forward(self, hidden_states, inference_params=None, post_cls=False):
         """
         hidden_states: (B, L, D)
         Returns: same shape as hidden_states
@@ -193,8 +193,13 @@ class Mamba(nn.Module):
                     delta_bias=self.dt_proj.bias.float(),
                     delta_softplus=True,
                 )
+                if post_cls:
+                    xz_p, xz_cls = torch.split(xz, (xz.shape[-1]-1, 1), dim=-1)
+                    xz_flip = torch.cat((xz_p.flip([-1]), xz_cls), dim=-1)
+                else:
+                    xz_flip = xz.flip([-1])
                 out_b = mamba_inner_fn_no_out_proj(
-                    xz.flip([-1]),
+                    xz_flip,
                     self.conv1d_b.weight,
                     self.conv1d_b.bias,
                     self.x_proj_b.weight,
