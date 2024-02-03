@@ -31,7 +31,7 @@ from contextlib import suppress
 # log about
 import mlflow
 import vim.utils as utils
-import models_mamba, models_mamba_HI
+import models_mamba, models, models_pcls, models_cls2
 
 
 def get_args_parser():
@@ -45,6 +45,8 @@ def get_args_parser():
     parser.add_argument('--model', default='deit_base_patch16_224', type=str, metavar='MODEL',
                         help='Name of model to train')
     parser.add_argument('--input-size', default=224, type=int, help='images input size')
+    parser.add_argument('--patch-size', default=16, type=int, help='patch size')
+    parser.add_argument('--hilbert', action='store_true', help='use hilbert indexing patches')
     parser.add_argument('--drop', type=float, default=0.0, metavar='PCT',
                         help='Dropout rate (default: 0.)')
     parser.add_argument('--drop-path', type=float, default=0.1, metavar='PCT',
@@ -292,10 +294,11 @@ def main(args):
         drop_rate=args.drop,
         drop_path_rate=args.drop_path,
         drop_block_rate=None,
-        img_size=args.input_size
+        img_size=args.input_size,
+        patch_size=args.patch_size,
+        hilbert_patch=args.hilbert,
     )
-
-                    
+    
     if args.finetune:
         if args.finetune.startswith('https'):
             checkpoint = torch.hub.load_state_dict_from_url(
@@ -424,6 +427,7 @@ def main(args):
         else:
             checkpoint = torch.load(args.resume, map_location='cpu')
         model_without_ddp.load_state_dict(checkpoint['model'])
+        args.start_epoch = checkpoint['epoch']
         if not args.eval and 'optimizer' in checkpoint and 'lr_scheduler' in checkpoint and 'epoch' in checkpoint:
             optimizer.load_state_dict(checkpoint['optimizer'])
             lr_scheduler.load_state_dict(checkpoint['lr_scheduler'])
@@ -437,6 +441,10 @@ def main(args):
         lr_scheduler.step(args.start_epoch)
         
     if args.eval:
+        with open(os.path.join(args.output_dir, 'test_log.log'), 'a+') as f:
+            if utils.is_main_process():
+                print(f"Evaluation for Epoch [{args.start_epoch}]:", file=f)
+            print(f"Evaluation for Epoch [{args.start_epoch}]:")
         with torch.no_grad():
             test_stats = evaluate(data_loader_val, model, device, amp_autocast, args)
         with open(os.path.join(args.output_dir, 'test_log.log'), 'a+') as f:

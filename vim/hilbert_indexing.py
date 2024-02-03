@@ -19,33 +19,34 @@ class Patchify(nn.Module):
         self.norm = norm_layer(embed_dim) if norm_layer else nn.Identity()
         self.n_bits = n_bits
         self.hilbert = HilbertCurve(p=n_bits, n=2)
-        self.n_patches = (2 ** n_bits) ** 2
-        self.index_map = self.hilbert.points_from_distances(list(range(self.n_patches)))
+        self.num_patches = (2 ** n_bits) ** 2
+        self.index_map = torch.tensor(self.hilbert.points_from_distances(list(range(self.num_patches)))).t()
+        self.map_index = torch.zeros(2 ** n_bits, 2 ** n_bits, dtype=int)
+        for t in range(self.num_patches):
+            self.map_index[self.index_map[0][t], self.index_map[1][t]] = t
         
     def flatten_patches(self, patch_map):
         B, C, H, W = patch_map.shape
         assert H == W == 2 ** self.n_bits
-        patch_serial = torch.zeros(B, H * W, C)
-        for t in range(self.n_patches):
-            patch_serial[:, t, :] = patch_map[:, :, self.index_map[t][0], self.index_map[t][1]]
-        return patch_serial.cuda()
+        flattened = patch_map[:, :, self.index_map[0], self.index_map[1]]
+        flattened = flattened.transpose(1, 2)
+        assert flattened.shape == (B, H * W, C)
+        return flattened.cuda()
     
     def unflatten_patches(self, patch_serial):
         B, N, C = patch_serial.shape
         L = int(N ** 0.5)
-        assert N == self.n_patches
-        patch_map = torch.zeros(B, C, L, L)
-        for t in range(self.n_patches):
-            patch_map[:, :, self.index_map[t][0], self.index_map[t][1]] = patch_serial[:, t, :]
-        return patch_map
+        assert N == self.num_patches
+        patch_serial = patch_serial.transpose(1, 2)
+        unflattened = patch_serial[:, :, self.map_index]
+        assert unflattened.shape == (B, C, L, L)
+        return unflattened.cuda()
     
     def forward(self, x):
-        B, C, H, W = x.shape
+        H, W = x.shape[-2:]
         ph, pw = self.patch_size
         assert H == self.img_size[0] and W == self.img_size[1]
-        x = x.reshape(B, C, self.grid_size[0], ph, self.grid_size[1], pw)
-        x = rearrange(x, 'b c h p w q -> b (c p q) h w')
-        assert x.shape == (B, C * ph * pw, *self.grid_size)
+        x = rearrange(x, 'b c (h p) (w q) -> b (c p q) h w', p=ph, q=pw)
         x = self.flatten_patches(x)
         x = self.proj(x)
         x = self.norm(x)

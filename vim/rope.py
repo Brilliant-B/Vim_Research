@@ -106,6 +106,7 @@ class VisionRotaryEmbeddingFast(nn.Module):
         num_freqs = 1,
     ):
         super().__init__()
+        self.n_patches = ft_seq_len ** 2
         if custom_freqs:
             freqs = custom_freqs
         elif freqs_for == 'lang':
@@ -132,10 +133,14 @@ class VisionRotaryEmbeddingFast(nn.Module):
 
         print('======== shape of rope freq', self.freqs_cos.shape, '========')
 
-    def forward(self, t): 
-        if t.shape[1] % 2 != 0:
-            t_spatial = t[:, 1:, :]
+    def forward(self, t, post_cls=False): 
+        if t.shape[1] - self.n_patches == 1:
+            t_spatial = t[:, 1:, :] if not post_cls else t[:, :-1, :]
             t_spatial = t_spatial * self.freqs_cos + rotate_half(t_spatial) * self.freqs_sin
-            return torch.cat((t[:, :1, :], t_spatial), dim=1)
-        else:
+            return torch.cat((t[:, :1, :], t_spatial) if not post_cls else (t_spatial, t[:, -1:, :]), dim=1)
+        elif t.shape[1] - self.n_patches == 2:
+            t_spatial = t[:, 1:-1, :]
+            t_spatial = t_spatial * self.freqs_cos + rotate_half(t_spatial) * self.freqs_sin
+            return torch.cat((t[:, :1, :], t_spatial, t[:, -1:, :]), dim=1)
+        elif t.shape[1] == self.n_patches:
             return  t * self.freqs_cos + rotate_half(t) * self.freqs_sin

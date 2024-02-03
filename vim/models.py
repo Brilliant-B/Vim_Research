@@ -8,7 +8,7 @@ from timm.models.vision_transformer import VisionTransformer, _cfg
 from timm.models.registry import register_model
 from timm.models.layers import trunc_normal_
 
-from timm.models.layers import DropPath
+from timm.models.layers import DropPath, PatchEmbed
 from timm.models.vision_transformer import _load_weights
 
 import math
@@ -186,7 +186,8 @@ def segm_init_weights(m):
 class VisionMamba_HI(nn.Module):
     def __init__(self, 
                  img_size=224, 
-                 patch_size=16, 
+                 patch_size=16,
+                 hilbert_patch=False,
                  img_n_bits=4,
                  depth=24, 
                  embed_dim=192, 
@@ -210,7 +211,6 @@ class VisionMamba_HI(nn.Module):
                  if_rope_residual=False,
                  bimamba_type="none",
                  if_cls_token=False,
-                 if_cls_token2=False,
                  **kwargs):
         factory_kwargs = {"device": device, "dtype": dtype}
         # add factory_kwargs into kwargs
@@ -223,25 +223,21 @@ class VisionMamba_HI(nn.Module):
         self.if_rope = if_rope
         self.if_rope_residual = if_rope_residual
         self.if_cls_token = if_cls_token
-        self.if_cls_token2 = if_cls_token2
         self.num_tokens = 1 if if_cls_token else 0
 
         # pretrain parameters
         self.num_classes = num_classes
         self.d_model = self.num_features = self.embed_dim = embed_dim  # num_features for consistency with other models
-
-        # self.patch_embed = PatchEmbed(
-        #     img_size=img_size, patch_size=patch_size, in_chans=channels, embed_dim=embed_dim)
-        # num_patches = self.patch_embed.num_patches
         
+        self.hilbert_patch = hilbert_patch
         self.patch_embed = Patchify(
-            n_bits=img_n_bits, img_size=img_size, patch_size=patch_size, in_chans=channels, embed_dim=embed_dim)
-        self.num_patches = self.patch_embed.n_patches
+            n_bits=img_n_bits, img_size=img_size, patch_size=patch_size, in_chans=channels, embed_dim=embed_dim
+        ) if self.hilbert_patch else PatchEmbed(
+            img_size=img_size, patch_size=patch_size, in_chans=channels, embed_dim=embed_dim)
+        self.num_patches = self.patch_embed.num_patches
 
         if if_cls_token:
             self.cls_token = nn.Parameter(torch.zeros(1, 1, self.embed_dim))
-            if if_cls_token2:
-                self.cls_token2 = nn.Parameter(torch.zeros(1, 1, self.embed_dim))
 
         if if_abs_pos_embed:
             self.pos_embed = nn.Parameter(torch.zeros(1, self.num_patches + self.num_tokens, self.embed_dim))
@@ -326,9 +322,6 @@ class VisionMamba_HI(nn.Module):
         if self.if_cls_token:
             cls_token = self.cls_token.expand(x.shape[0], -1, -1)  # stole cls_tokens impl from Phil Wang, thanks
             x = torch.cat((cls_token, x), dim=1)
-            if self.if_cls_token2:
-                cls_token2 = self.cls_token2.expand(x.shape[0], -1, -1)
-                x = torch.cat((x, cls_token2), dim=1)
         
         if self.if_abs_pos_embed:
             x = x + self.pos_embed
@@ -369,10 +362,7 @@ class VisionMamba_HI(nn.Module):
 
         # return only cls token if it exists
         if self.if_cls_token:
-            ret = hidden_states[:, 0, :]
-            if self.if_cls_token2:
-                ret = 0.5 * (ret + hidden_states[:, -1, :])
-            return ret
+            return hidden_states[:, 0, :]
 
         if self.final_pool_type == 'none':
             return hidden_states[:, -1, :]
@@ -393,11 +383,11 @@ class VisionMamba_HI(nn.Module):
         return x
 
 
-# hilbert main used
+
 @register_model
-def vimhi_tiny_patch16_256_bimambav2_final_pool_mean_abs_pos_embed_rope_also_residual_with_cls_token(pretrained=False, **kwargs):
+def vim_tiny_bimambav2_final_pool_mean_abs_pos_embed_rope_also_residual_with_cls_token(pretrained=False, **kwargs):
     model = VisionMamba_HI(
-        patch_size=16, embed_dim=192, depth=24, rms_norm=True, residual_in_fp32=True, fused_add_norm=True, final_pool_type='mean', if_abs_pos_embed=True, if_rope=True, if_rope_residual=True, bimamba_type="v2", if_cls_token=True, if_cls_token2=True, **kwargs)
+        embed_dim=192, depth=24, rms_norm=True, residual_in_fp32=True, fused_add_norm=True, final_pool_type='mean', if_abs_pos_embed=True, if_rope=True, if_rope_residual=True, bimamba_type="v2", if_cls_token=True, **kwargs)
     model.default_cfg = _cfg()
     if pretrained:
         checkpoint = torch.hub.load_state_dict_from_url(
@@ -406,88 +396,3 @@ def vimhi_tiny_patch16_256_bimambav2_final_pool_mean_abs_pos_embed_rope_also_res
         )
         model.load_state_dict(checkpoint["model"])
     return model
-
-
-@register_model
-def vimhi_tiny_patch16_224_bimambav2_final_pool_mean_abs_pos_embed_rope_also_residual(pretrained=False, **kwargs):
-    model = VisionMamba_HI(
-        patch_size=16, embed_dim=192, depth=24, rms_norm=True, residual_in_fp32=True, fused_add_norm=True, final_pool_type='mean', if_abs_pos_embed=True, if_rope=True, if_rope_residual=True, bimamba_type="v2", **kwargs)
-    model.default_cfg = _cfg()
-    if pretrained:
-        checkpoint = torch.hub.load_state_dict_from_url(
-            url="to.do",
-            map_location="cpu", check_hash=True
-        )
-        model.load_state_dict(checkpoint["model"])
-    return model
-
-
-@register_model
-def vimhi_tiny_patch16_224_bimambav2_final_pool_mean_abs_pos_embed_rope_also_residual_with_cls_token(pretrained=False, **kwargs):
-    model = VisionMamba_HI(
-        patch_size=16, embed_dim=192, depth=24, rms_norm=True, residual_in_fp32=True, fused_add_norm=True, final_pool_type='mean', if_abs_pos_embed=True, if_rope=True, if_rope_residual=True, bimamba_type="v2", if_cls_token=True, **kwargs)
-    model.default_cfg = _cfg()
-    if pretrained:
-        checkpoint = torch.hub.load_state_dict_from_url(
-            url="to.do",
-            map_location="cpu", check_hash=True
-        )
-        model.load_state_dict(checkpoint["model"])
-    return model
-
-
-@register_model
-def vimhi_tiny_patch8_224_bimambav2_final_pool_mean_abs_pos_embed_rope_also_residual(pretrained=False, **kwargs):
-    model = VisionMamba_HI(
-        patch_size=8, embed_dim=192, depth=24, rms_norm=True, residual_in_fp32=True, fused_add_norm=True, final_pool_type='mean', if_abs_pos_embed=True, if_rope=True, if_rope_residual=True, bimamba_type="v2", **kwargs)
-    model.default_cfg = _cfg()
-    if pretrained:
-        checkpoint = torch.hub.load_state_dict_from_url(
-            url="to.do",
-            map_location="cpu", check_hash=True
-        )
-        model.load_state_dict(checkpoint["model"])
-    return model
-
-
-@register_model
-def vimhi_tiny_patch8_224_bimambav2_final_pool_mean_abs_pos_embed_rope_also_residual_with_cls_token(pretrained=False, **kwargs):
-    model = VisionMamba_HI(
-        patch_size=8, embed_dim=192, depth=24, rms_norm=True, residual_in_fp32=True, fused_add_norm=True, final_pool_type='mean', if_abs_pos_embed=True, if_rope=True, if_rope_residual=True, bimamba_type="v2", if_cls_token=True, **kwargs)
-    model.default_cfg = _cfg()
-    if pretrained:
-        checkpoint = torch.hub.load_state_dict_from_url(
-            url="to.do",
-            map_location="cpu", check_hash=True
-        )
-        model.load_state_dict(checkpoint["model"])
-    return model
-
-
-@register_model
-def vimhi_small_patch16_224_bimambav2_final_pool_mean_abs_pos_embed_rope_also_residual(pretrained=False, **kwargs):
-    model = VisionMamba_HI(
-        patch_size=16, embed_dim=384, depth=24, rms_norm=True, residual_in_fp32=True, fused_add_norm=True, final_pool_type='mean', if_abs_pos_embed=True, if_rope=True, if_rope_residual=True, bimamba_type="v2", **kwargs)
-    model.default_cfg = _cfg()
-    if pretrained:
-        checkpoint = torch.hub.load_state_dict_from_url(
-            url="to.do",
-            map_location="cpu", check_hash=True
-        )
-        model.load_state_dict(checkpoint["model"])
-    return model
-
-
-@register_model
-def vimhi_base_patch16_224_bimambav2_final_pool_mean_abs_pos_embed_rope_also_residual(pretrained=False, **kwargs):
-    model = VisionMamba_HI(
-        patch_size=16, embed_dim=768, depth=24, rms_norm=True, residual_in_fp32=True, fused_add_norm=True, final_pool_type='mean', if_abs_pos_embed=True, if_rope=True, if_rope_residual=True, bimamba_type="v2", **kwargs)
-    model.default_cfg = _cfg()
-    if pretrained:
-        checkpoint = torch.hub.load_state_dict_from_url(
-            url="to.do",
-            map_location="cpu", check_hash=True
-        )
-        model.load_state_dict(checkpoint["model"])
-    return model
-

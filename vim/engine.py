@@ -96,7 +96,7 @@ def evaluate(data_loader, model, device, amp_autocast, args):
     criterion = torch.nn.CrossEntropyLoss()
     metric_logger = utils.MetricLogger(delimiter="  ", args=args)
     header = 'Test:'
-    print_freq = 20
+    print_freq = 160
     
     # switch to evaluation mode
     model.eval()
