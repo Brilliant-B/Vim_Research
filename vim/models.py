@@ -188,7 +188,6 @@ class VisionMamba_HI(nn.Module):
                  img_size=224, 
                  patch_size=16,
                  hilbert_patch=False,
-                 img_n_bits=4,
                  depth=24, 
                  embed_dim=192, 
                  channels=3, 
@@ -230,9 +229,7 @@ class VisionMamba_HI(nn.Module):
         self.d_model = self.num_features = self.embed_dim = embed_dim  # num_features for consistency with other models
         
         self.hilbert_patch = hilbert_patch
-        self.patch_embed = Patchify(
-            n_bits=img_n_bits, img_size=img_size, patch_size=patch_size, in_chans=channels, embed_dim=embed_dim
-        ) if self.hilbert_patch else PatchEmbed(
+        self.patch_embed = (Patchify if self.hilbert_patch else PatchEmbed)(
             img_size=img_size, patch_size=patch_size, in_chans=channels, embed_dim=embed_dim)
         self.num_patches = self.patch_embed.num_patches
 
@@ -387,7 +384,7 @@ class VisionMamba_HI(nn.Module):
 @register_model
 def vim_tiny_bimambav2_final_pool_mean_abs_pos_embed_rope_also_residual_with_cls_token(pretrained=False, **kwargs):
     model = VisionMamba_HI(
-        embed_dim=192, depth=24, rms_norm=True, residual_in_fp32=True, fused_add_norm=True, final_pool_type='mean', if_abs_pos_embed=True, if_rope=True, if_rope_residual=True, bimamba_type="v2", if_cls_token=True, **kwargs)
+        depth=24, rms_norm=True, residual_in_fp32=True, fused_add_norm=True, final_pool_type='mean', if_abs_pos_embed=True, if_rope=True, if_rope_residual=True, bimamba_type="v2", if_cls_token=True, **kwargs)
     model.default_cfg = _cfg()
     if pretrained:
         checkpoint = torch.hub.load_state_dict_from_url(

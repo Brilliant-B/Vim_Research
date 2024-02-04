@@ -1,5 +1,6 @@
 import torch
 import torch.nn as nn
+import math
 from einops import rearrange
 from timm.models.layers.helpers import to_2tuple
 from hilbertcurve.hilbertcurve import HilbertCurve
@@ -7,21 +8,21 @@ from hilbertcurve.hilbertcurve import HilbertCurve
 class Patchify(nn.Module):
     """ 2D Image to Patch Embedding WITH Hilbert Indexing
     """
-    def __init__(self, n_bits=4, img_size=224, patch_size=16, in_chans=3, embed_dim=768, norm_layer=None):
+    def __init__(self, img_size=224, patch_size=16, in_chans=3, embed_dim=768, norm_layer=None):
         super().__init__()
         img_size = to_2tuple(img_size)
         patch_size = to_2tuple(patch_size)
+        self.grid_size = (img_size[0] // patch_size[0], img_size[1] // patch_size[1])
         self.img_size = img_size
         self.patch_size = patch_size
-        self.grid_size = (img_size[0] // patch_size[0], img_size[1] // patch_size[1])
+        assert self.grid_size[0] == self.grid_size[1] and self.grid_size[0] & (self.grid_size[0] - 1) == 0
         self.num_patches = self.grid_size[0] * self.grid_size[1]
         self.proj = nn.Linear(in_chans * patch_size[0] * patch_size[1], embed_dim)
         self.norm = norm_layer(embed_dim) if norm_layer else nn.Identity()
-        self.n_bits = n_bits
-        self.hilbert = HilbertCurve(p=n_bits, n=2)
-        self.num_patches = (2 ** n_bits) ** 2
+        self.n_bits = math.log2(self.grid_size[0])
+        self.hilbert = HilbertCurve(p=self.n_bits, n=2)
         self.index_map = torch.tensor(self.hilbert.points_from_distances(list(range(self.num_patches)))).t()
-        self.map_index = torch.zeros(2 ** n_bits, 2 ** n_bits, dtype=int)
+        self.map_index = torch.zeros(self.grid_size[0], self.grid_size[1], dtype=int)
         for t in range(self.num_patches):
             self.map_index[self.index_map[0][t], self.index_map[1][t]] = t
         

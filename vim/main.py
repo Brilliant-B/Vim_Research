@@ -44,6 +44,7 @@ def get_args_parser():
     # Model parameters
     parser.add_argument('--model', default='deit_base_patch16_224', type=str, metavar='MODEL',
                         help='Name of model to train')
+    parser.add_argument('--embed-dim', default=192, type=int, help='patch embed dim')
     parser.add_argument('--input-size', default=224, type=int, help='images input size')
     parser.add_argument('--patch-size', default=16, type=int, help='patch size')
     parser.add_argument('--hilbert', action='store_true', help='use hilbert indexing patches')
@@ -228,9 +229,11 @@ def main(args):
     dataset_val, _ = build_dataset(is_train=False, args=args)
     with open(os.path.join(args.output_dir, f'{train_or_test}_log.log'), 'a+') as f:
         if utils.is_main_process():
+            print("[Hilbert Indexing]" if args.hilbert else "[Normal Indexing]", file=f)
             if not args.eval:
                 print(f"dataset_train = {len(dataset_train)}", file=f)
             print(f"dataset_val = {len(dataset_val)}", file=f)
+        print("[Hilbert Indexing]" if args.hilbert else "[Normal Indexing]")
         if not args.eval:
             print(f"dataset_train = {len(dataset_train)}")
         print(f"dataset_val = {len(dataset_val)}")
@@ -294,6 +297,7 @@ def main(args):
         drop_rate=args.drop,
         drop_path_rate=args.drop_path,
         drop_block_rate=None,
+        embed_dim=args.embed_dim,
         img_size=args.input_size,
         patch_size=args.patch_size,
         hilbert_patch=args.hilbert,
