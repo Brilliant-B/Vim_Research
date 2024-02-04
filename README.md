@@ -35,21 +35,24 @@ Try Hilbert Indexing on the serial.
   - `cd mamba; pip install -e .`
 
 ## Train Your Vim
+To train `Vim-Ti` on ImageNet-1K, run:
+
+`bash vim/scripts/vim-train.sh`
+
+Using original settings, to train `Vim-Ti` on ImageNet-1K, run:
 
 `bash vim/scripts/pt-vim-train.sh`
 
-`bash vim/scripts/vim-train.sh`
+## Evaluation on Provided Weights
+To evaluate `Vim-Ti` on ImageNet-1K, run:
+
+`bash vim/scripts/vim-eval.sh`
 
 ## Model Weights
 
 | Model | #param. | Top-1 Acc. | Top-5 Acc. | Hugginface Repo |
 |:------------------------------------------------------------------:|:-------------:|:----------:|:----------:|:----------:|
 | [Vim-tiny](https://huggingface.co/hustvl/Vim-tiny)    |       7M       |   73.1   | 91.1 | https://huggingface.co/hustvl/Vim-tiny |
-
-## Evaluation on Provided Weights
-To evaluate `Vim-Ti` on ImageNet-1K, run:
-
-`bash vim/scripts/vim-eval.sh`
 
 ## Acknowledgement :heart:
 This project is based on Mamba ([paper](https://arxiv.org/abs/2312.00752), [code](https://github.com/state-spaces/mamba)), Causal-Conv1d ([code](https://github.com/Dao-AILab/causal-conv1d)), DeiT ([paper](https://arxiv.org/abs/2012.12877), [code](https://github.com/facebookresearch/deit)). Thanks for their wonderful works.
