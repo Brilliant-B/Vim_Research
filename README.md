@@ -39,9 +39,9 @@ To train `Vim-Ti` on ImageNet-1K, run:
 
 `bash vim/scripts/vim-train.sh`
 
-Using original settings, to train `Vim-Ti` on ImageNet-1K, run:
+To finetune `Vim-Ti` on ImageNet-1K based on the *Published Checkpoint*, run:
 
-`bash vim/scripts/pt-vim-train.sh`
+`bash vim/scripts/vim-finetune.sh`
 
 ## Evaluation on Provided Weights
 To evaluate `Vim-Ti` on ImageNet-1K, run:
